@@ -7,15 +7,11 @@ import { useRouter } from 'next/router';
 import { useDispatch, shallowEqual, useSelector } from 'react-redux';
 
 import BookmarkedIcon from '../../../public/icons/bookmark.svg';
-import ChatIcon from '../../../public/icons/chat.svg';
 import CopyIcon from '../../../public/icons/copy.svg';
 import LinkIcon from '../../../public/icons/east.svg';
-import ShareIcon from '../../../public/icons/share.svg';
 import UnBookmarkedIcon from '../../../public/icons/unbookmarked.svg';
 import TafsirVerseAction from '../QuranReader/TafsirView/TafsirVerseAction';
-import { onShareClicked } from '../QuranReader/TranslationView/ShareVerseButton';
 
-import styles from './OverflowVerseActionsMenyBody.module.scss';
 import VerseActionAdvancedCopy from './VerseActionAdvancedCopy';
 import VerseActionRepeatAudio from './VerseActionRepeatAudio';
 
@@ -26,8 +22,6 @@ import WordByWordVerseAction from 'src/components/QuranReader/ReadingView/WordBy
 import useBrowserLayoutEffect from 'src/hooks/useBrowserLayoutEffect';
 import { selectBookmarks, toggleVerseBookmark } from 'src/redux/slices/QuranReader/bookmarks';
 import { logButtonClick } from 'src/utils/eventLogger';
-import { getQuranReflectVerseUrl } from 'src/utils/navigation';
-import { navigateToExternalUrl } from 'src/utils/url';
 import { getVerseUrl } from 'src/utils/verse';
 import Verse from 'types/Verse';
 
@@ -125,6 +119,11 @@ const OverflowVerseActionsMenuBody: React.FC<Props> = ({
       }`,
     );
     dispatch({ type: toggleVerseBookmark.type, payload: verse.verseKey });
+
+    toast(isVerseBookmarked ? t('verse-bookmark-removed') : t('verse-bookmarked'), {
+      status: ToastStatus.Success,
+    });
+
     if (onActionTriggered) {
       onActionTriggered();
     }
@@ -157,37 +156,6 @@ const OverflowVerseActionsMenuBody: React.FC<Props> = ({
         verseNumber={verse.verseNumber}
         isTranslationView={isTranslationView}
       />
-      <PopoverMenu.Item
-        className={styles.hiddenOnDesktop}
-        onClick={() => {
-          logButtonClick(
-            `${isTranslationView ? 'translation_view' : 'reading_view'}_verse_actions_menu_reflect`,
-          );
-          navigateToExternalUrl(getQuranReflectVerseUrl(verse.verseKey));
-          if (onActionTriggered) {
-            onActionTriggered();
-          }
-        }}
-        icon={<ChatIcon />}
-      >
-        {t('reflect')}
-      </PopoverMenu.Item>
-
-      <PopoverMenu.Item
-        className={styles.hiddenOnDesktop}
-        onClick={() => {
-          onShareClicked(verse.verseKey, isTranslationView, () => {
-            setIsShared(true);
-            toast(t('shared'), { status: ToastStatus.Success });
-          });
-          if (onActionTriggered) {
-            onActionTriggered();
-          }
-        }}
-        icon={<ShareIcon />}
-      >
-        {t('share')}
-      </PopoverMenu.Item>
 
       <PopoverMenu.Item
         onClick={onToggleBookmarkClicked}
