@@ -147,7 +147,11 @@ const OverflowVerseActionsMenuBody: React.FC<Props> = ({
         {isCopied ? `${t('copied')}!` : `${t('copy')}`}
       </PopoverMenu.Item>
 
-      <VerseActionAdvancedCopy verse={verse} isTranslationView={isTranslationView} />
+      <VerseActionAdvancedCopy
+        onActionTriggered={onActionTriggered}
+        verse={verse}
+        isTranslationView={isTranslationView}
+      />
       {!isTranslationView && (
         <WordByWordVerseAction verse={verse} onActionTriggered={onActionTriggered} />
       )}
@@ -155,6 +159,7 @@ const OverflowVerseActionsMenuBody: React.FC<Props> = ({
         chapterId={Number(verse.chapterId)}
         verseNumber={verse.verseNumber}
         isTranslationView={isTranslationView}
+        onActionTriggered={onActionTriggered}
       />
 
       <PopoverMenu.Item

@@ -6,12 +6,14 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import useTranslation from 'next-translate/useTranslation';
 import dynamic from 'next/dynamic';
 import { useHotkeys } from 'react-hotkeys-hook';
+import { useSelector } from 'react-redux';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 
 import useScrollToVirtualizedVerse from './hooks/useScrollToVirtualizedVerse';
 import PageContainer from './PageContainer';
 import PageNavigationButtons from './PageNavigationButtons';
 import styles from './ReadingView.module.scss';
+import ReadingViewSkeleton from './ReadingViewSkeleton';
 
 import Spinner from 'src/components/dls/Spinner/Spinner';
 import useFetchPagesCount from 'src/components/QuranReader/hooks/useFetchTotalPages';
@@ -20,6 +22,7 @@ import QueryParamMessage from 'src/components/QuranReader/QueryParamMessage';
 import useGetQueryParamOrReduxValue from 'src/hooks/useGetQueryParamOrReduxValue';
 import useQcfFont from 'src/hooks/useQcfFont';
 import Error from 'src/pages/_error';
+import { selectIsUsingDefaultFont } from 'src/redux/slices/QuranReader/styles';
 import QuranReaderStyles from 'src/redux/types/QuranReaderStyles';
 import { logButtonClick } from 'src/utils/eventLogger';
 import { VersesResponse } from 'types/ApiResponses';
@@ -42,17 +45,19 @@ type ReadingViewProps = {
   resourceId: number | string; // can be the chapter, verse, tafsir, hizb, juz, rub or page's ID.
 };
 
+const INCREASE_VIEWPORT_BY_PIXELS = 1200;
+
 const ReadingView = ({
   quranReaderStyles,
   quranReaderDataType,
   initialData,
   resourceId,
 }: ReadingViewProps) => {
-  const initialFirstMushafPage = initialData.verses[0].pageNumber;
   const [mushafPageToVersesMap, setMushafPageToVersesMap] = useState<Record<number, Verse[]>>({
-    [initialFirstMushafPage]: initialData.verses,
+    [initialData.verses[0].pageNumber]: initialData.verses,
   });
   const { lang } = useTranslation('quran-reader');
+  const isUsingDefaultFont = useSelector(selectIsUsingDefaultFont);
   const currentPageIndex = useRef<number>(0);
   const verses = useMemo(
     () => Object.values(mushafPageToVersesMap).flat(),
@@ -71,7 +76,7 @@ const ReadingView = ({
     QueryParam.WBW_LOCALE,
   );
   useQcfFont(quranReaderStyles.quranFont, verses);
-  const { pagesCount, hasError, pagesVersesRange } = useFetchPagesCount(
+  const { pagesCount, hasError, pagesVersesRange, isLoading } = useFetchPagesCount(
     resourceId,
     quranReaderDataType,
     initialData,
@@ -124,16 +129,15 @@ const ReadingView = ({
 
   const itemContentRenderer = (pageIndex: number) => (
     <PageContainer
+      isUsingDefaultFont={isUsingDefaultFont}
       pagesVersesRange={pagesVersesRange}
       quranReaderStyles={quranReaderStyles}
       reciterId={reciterId}
       lang={lang}
       wordByWordLocale={wordByWordLocale}
-      pageNumber={initialFirstMushafPage + pageIndex}
       pageIndex={pageIndex}
       setMushafPageToVersesMap={setMushafPageToVersesMap}
       initialData={initialData}
-      quranReaderDataType={quranReaderDataType}
     />
   );
 
@@ -150,6 +154,8 @@ const ReadingView = ({
     }
   };
 
+  //  if the user is not using the default font, we should wait until pagesLookup API finishes loading since we need it to determine the correct pageNumber that we will page to the API
+  const isLoadingMushafPagesLookup = !isUsingDefaultFont && isLoading;
   return (
     <>
       <QueryParamMessage
@@ -158,24 +164,30 @@ const ReadingView = ({
         wordByWordLocaleQueryParamDifferent={wordByWordLocaleQueryParamDifferent}
       />
       <div onCopy={(event) => onCopyQuranWords(event, verses)} className={styles.container}>
-        <Virtuoso
-          ref={virtuosoRef}
-          useWindowScroll
-          increaseViewportBy={300}
-          className={styles.virtuosoScroller}
-          initialItemCount={1} // needed for SSR.
-          totalCount={pagesCount}
-          itemContent={itemContentRenderer}
-          itemsRendered={onPagesRendered}
-          components={{
-            Footer: () => (
-              <EndOfScrollingControls
-                quranReaderDataType={quranReaderDataType}
-                lastVerse={verses[verses.length - 1]}
-              />
-            ),
-          }}
-        />
+        {isLoadingMushafPagesLookup ? (
+          <div className={styles.virtuosoScroller}>
+            <ReadingViewSkeleton />
+          </div>
+        ) : (
+          <Virtuoso
+            ref={virtuosoRef}
+            useWindowScroll
+            increaseViewportBy={INCREASE_VIEWPORT_BY_PIXELS}
+            className={styles.virtuosoScroller}
+            initialItemCount={1} // needed for SSR.
+            totalCount={pagesCount}
+            itemContent={itemContentRenderer}
+            itemsRendered={onPagesRendered}
+            components={{
+              Footer: () => (
+                <EndOfScrollingControls
+                  quranReaderDataType={quranReaderDataType}
+                  lastVerse={verses[verses.length - 1]}
+                />
+              ),
+            }}
+          />
+        )}
       </div>
       <PageNavigationButtons
         scrollToNextPage={scrollToNextPage}

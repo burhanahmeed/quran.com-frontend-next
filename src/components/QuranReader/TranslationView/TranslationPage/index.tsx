@@ -7,12 +7,13 @@ import useSWRImmutable from 'swr/immutable';
 import styles from '../TranslationView.module.scss';
 
 import ChapterHeader from 'src/components/chapters/ChapterHeader';
-import { getRequestKey, verseFetcher } from 'src/components/QuranReader/api';
+import { getTranslationViewRequestKey, verseFetcher } from 'src/components/QuranReader/api';
 import TranslationViewCell from 'src/components/QuranReader/TranslationView/TranslationViewCell';
 import TranslationViewSkeleton from 'src/components/QuranReader/TranslationView/TranslationViewSkeleton';
-import { getQuranReaderStylesInitialState } from 'src/redux/defaultSettings/util';
 import { selectIsUsingDefaultReciter } from 'src/redux/slices/AudioPlayer/state';
 import { selectIsUsingDefaultWordByWordLocale } from 'src/redux/slices/QuranReader/readingPreferences';
+import { selectIsUsingDefaultFont } from 'src/redux/slices/QuranReader/styles';
+import { selectIsUsingDefaultTranslations } from 'src/redux/slices/QuranReader/translations';
 import QuranReaderStyles from 'src/redux/types/QuranReaderStyles';
 import { VersesResponse } from 'types/ApiResponses';
 import { QuranReaderDataType } from 'types/QuranReader';
@@ -28,7 +29,6 @@ interface Props {
   reciterId: number;
   initialData: VersesResponse;
   resourceId: number | string;
-  versesPerPage: number;
 }
 
 const TranslationPage: React.FC<Props> = ({
@@ -41,19 +41,20 @@ const TranslationPage: React.FC<Props> = ({
   initialData,
   resourceId,
   setApiPageToVersesMap,
-  versesPerPage,
 }) => {
   const { lang } = useTranslation();
   const isUsingDefaultReciter = useSelector(selectIsUsingDefaultReciter);
   const isUsingDefaultWordByWordLocale = useSelector(selectIsUsingDefaultWordByWordLocale);
+  const isUsingDefaultTranslations = useSelector(selectIsUsingDefaultTranslations);
+  const isUsingDefaultFont = useSelector(selectIsUsingDefaultFont);
   const shouldUseInitialData =
     pageNumber === 1 &&
-    quranReaderStyles.quranFont === getQuranReaderStylesInitialState(lang).quranFont &&
+    isUsingDefaultFont &&
     isUsingDefaultReciter &&
     isUsingDefaultWordByWordLocale &&
-    quranReaderDataType !== QuranReaderDataType.Juz;
+    isUsingDefaultTranslations;
   const { data: verses } = useSWRImmutable(
-    getRequestKey({
+    getTranslationViewRequestKey({
       quranReaderDataType,
       pageNumber,
       initialData,
@@ -83,13 +84,13 @@ const TranslationPage: React.FC<Props> = ({
   }, [pageNumber, setApiPageToVersesMap, verses]);
 
   if (!verses) {
-    return <TranslationViewSkeleton numberOfSkeletons={versesPerPage} />;
+    return <TranslationViewSkeleton numberOfSkeletons={initialData.pagination.perPage} />;
   }
   return (
     <div className={styles.container}>
       {verses.map((verse, index) => {
         const currentVerseIndex =
-          pageNumber === 1 ? index : index + (pageNumber - 1) * versesPerPage;
+          pageNumber === 1 ? index : index + (pageNumber - 1) * initialData.pagination.perPage;
         return (
           <div key={currentVerseIndex}>
             {verse.verseNumber === 1 && (

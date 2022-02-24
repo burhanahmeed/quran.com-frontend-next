@@ -21,18 +21,37 @@ type TafsirVerseActionProps = {
   verseNumber: number;
   chapterId: number;
   isTranslationView: boolean;
+  onActionTriggered?: () => void;
 };
+
+const CLOSE_POPOVER_AFTER_MS = 150;
 
 const TafsirVerseAction = ({
   chapterId,
   verseNumber,
   isTranslationView,
+  onActionTriggered,
 }: TafsirVerseActionProps) => {
   const [isContentModalOpen, setIsContentModalOpen] = useState(false);
   const { t } = useTranslation();
   const tafsirs = useSelector(selectSelectedTafsirs);
 
   const contentModalRef = useRef<ContentModalHandles>();
+
+  const onModalClose = () => {
+    if (isTranslationView) {
+      logEvent('translation_view_tafsir_modal_close');
+    } else {
+      logEvent('reading_view_tafsir_modal_close');
+    }
+    setIsContentModalOpen(false);
+    if (onActionTriggered) {
+      setTimeout(() => {
+        // we set a really short timeout to close the popover after the modal has been closed to allow enough time for the fadeout css effect to apply.
+        onActionTriggered();
+      }, CLOSE_POPOVER_AFTER_MS);
+    }
+  };
 
   return (
     <>
@@ -47,35 +66,30 @@ const TafsirVerseAction = ({
       >
         {t('quran-reader:tafsirs')}
       </PopoverMenu.Item>
-      {isContentModalOpen && (
-        <TafsirBody
-          initialChapterId={chapterId.toString()}
-          initialVerseNumber={verseNumber.toString()}
-          scrollToTop={() => {
-            contentModalRef.current.scrollToTop();
-          }}
-          render={({ body, languageAndTafsirSelection, surahAndAyahSelection }) => {
-            return (
-              <ContentModal
-                innerRef={contentModalRef}
-                url={getVerseSelectedTafsirNavigationUrl(chapterId, verseNumber, tafsirs[0])}
-                isOpen={isContentModalOpen}
-                hasCloseButton
-                onClose={() => {
-                  logEvent(
-                    `${isTranslationView ? 'translation_view' : 'reading_view'}_tafsir_modal_close`,
-                  );
-                  setIsContentModalOpen(false);
-                }}
-                header={surahAndAyahSelection}
-              >
-                {languageAndTafsirSelection}
-                {body}
-              </ContentModal>
-            );
-          }}
-        />
-      )}
+
+      <TafsirBody
+        initialChapterId={chapterId.toString()}
+        initialVerseNumber={verseNumber.toString()}
+        scrollToTop={() => {
+          contentModalRef.current.scrollToTop();
+        }}
+        render={({ body, languageAndTafsirSelection, surahAndAyahSelection }) => {
+          return (
+            <ContentModal
+              innerRef={contentModalRef}
+              url={getVerseSelectedTafsirNavigationUrl(chapterId, verseNumber, tafsirs[0])}
+              isOpen={isContentModalOpen}
+              hasCloseButton
+              onClose={onModalClose}
+              onEscapeKeyDown={onModalClose}
+              header={surahAndAyahSelection}
+            >
+              {languageAndTafsirSelection}
+              {body}
+            </ContentModal>
+          );
+        }}
+      />
     </>
   );
 };
